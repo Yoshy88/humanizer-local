@@ -28,9 +28,9 @@ export async function POST(request: NextRequest) {
       humanScore: 100 - aiScore,
       verdict: aiScore > 60 ? 'Likely AI-generated' : 'Likely Human-written',
       analysis: {
-        sentenceCount: text.split(/[.!?]+/).filter(s => s.trim().length > 0).length,
+        sentenceCount: text.split(/[.!?]+/).filter((s: string) => s.trim().length > 0).length,
         wordCount: text.split(/\s+/).length,
-        avgSentenceLength: text.split(/[.!?]+/).filter(s => s.trim().length > 0).reduce((sum, s) => sum + s.split(/\s+/).length, 0) / Math.max(1, text.split(/[.!?]+/).filter(s => s.trim().length > 0).length),
+        avgSentenceLength: text.split(/[.!?]+/).filter((s: string) => s.trim().length > 0).reduce((sum: number, s: string) => sum + s.split(/\s+/).length, 0) / Math.max(1, text.split(/[.!?]+/).filter((s: string) => s.trim().length > 0).length),
       },
     });
   } catch (error) {
