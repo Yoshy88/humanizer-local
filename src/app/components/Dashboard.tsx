@@ -140,7 +140,7 @@ function humanizeText(text: string, intensity: 'light' | 'medium' | 'aggressive'
         'it is important to note': ['it is worth noting', 'notably'],
         'it should be noted': ['it bears noting', 'notably'],
         'needless to say': ['as expected', 'unsurprisingly'],
-        'in conclusion': ['to conclude', 'in conclusion'],
+        'in conclusion': ['to conclude', 'overall'],
       }
     : {
         'in today\'s world': ['today', 'currently'],
@@ -152,19 +152,19 @@ function humanizeText(text: string, intensity: 'light' | 'medium' | 'aggressive'
 
   const vocabularyReplacements: Record<string, string[]> = tone === 'academic'
     ? {
-        'furthermore': ['in addition', 'further'],
-        'moreover': ['furthermore', 'additionally'],
-        'therefore': ['thus', 'therefore'],
-        'however': ['however', 'nevertheless'],
+        'furthermore': ['in addition', 'additionally'],
+        'moreover': ['in addition', 'further'],
+        'therefore': ['thus', 'as a result'],
+        'however': ['nevertheless', 'still'],
         'utilize': ['use', 'employ'],
         'facilitate': ['support', 'enable'],
-        'demonstrate': ['show', 'demonstrate'],
+        'demonstrate': ['show', 'indicate'],
       }
     : {
         'furthermore': ['also', 'in addition'],
         'moreover': ['also', 'further'],
-        'therefore': ['so', 'therefore'],
-        'however': ['however', 'but'],
+        'therefore': ['so', 'as a result'],
+        'however': ['still', 'but'],
         'utilize': ['use'],
         'facilitate': ['help', 'support'],
         'demonstrate': ['show'],
@@ -190,7 +190,11 @@ function detectTone(text: string): 'academic' | 'general' {
 
 function applyPhraseReplacements(text: string, replacements: Record<string, string[]>): string {
   let result = text;
+  const lowerResult = text.toLowerCase();
   Object.entries(replacements).forEach(([phrase, alternatives]) => {
+    if (!lowerResult.includes(phrase.toLowerCase())) {
+      return;
+    }
     const regex = new RegExp(`\\b${escapeRegExp(phrase)}\\b`, 'gi');
     result = result.replace(regex, () => alternatives[Math.floor(Math.random() * alternatives.length)]);
   });
