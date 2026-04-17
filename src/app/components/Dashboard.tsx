@@ -131,226 +131,118 @@ function analyzeTextForAI(text: string): number {
 }
 
 function humanizeText(text: string, intensity: 'light' | 'medium' | 'aggressive'): string {
+  const tone = detectTone(text);
   let result = text;
 
-  // 1. AGGRESSIVELY replace cliché AI phrases first
-  const clicheReplacements: Record<string, string[]> = {
-    'in today\'s world': ['these days', 'nowadays', 'currently', 'you know?'],
-    'it is important to note': ['worth noting', 'key point', 'thing is', 'heads up'],
-    'furthermore': ['plus', 'also', 'beyond that', 'and like'],
-    'moreover': ['and like', 'on another note', 'oh and also'],
-    'in conclusion': ['so basically', 'bottom line', 'tl;dr', 'anyway'],
-    'it should be noted': ['worth mentioning', 'fair point', 'gotta say'],
-    'needless to say': ['obviously', 'duh', 'like obvs'],
-    'therefore': ['so', 'that means', 'which is why'],
-    'however': ['but', 'though', 'tbh'],
-    'nonetheless': ['but still', 'anyway'],
-  };
+  const phraseReplacements: Record<string, string[]> = tone === 'academic'
+    ? {
+        'in today\'s world': ['in contemporary contexts', 'today'],
+        'it is important to note': ['it is worth noting', 'notably'],
+        'it should be noted': ['it bears noting', 'notably'],
+        'needless to say': ['as expected', 'unsurprisingly'],
+        'in conclusion': ['to conclude', 'in conclusion'],
+      }
+    : {
+        'in today\'s world': ['today', 'currently'],
+        'it is important to note': ['notably', 'it is worth noting'],
+        'it should be noted': ['notably', 'worth noting'],
+        'needless to say': ['as expected', 'of course'],
+        'in conclusion': ['to conclude', 'overall'],
+      };
 
-  Object.entries(clicheReplacements).forEach(([cliche, alternatives]) => {
-    const regex = new RegExp(`\\b${cliche}\\b`, 'gi');
-    while (result.match(regex)) {
-      const alt = alternatives[Math.floor(Math.random() * alternatives.length)];
-      result = result.replace(regex, alt);
-    }
+  const vocabularyReplacements: Record<string, string[]> = tone === 'academic'
+    ? {
+        'furthermore': ['in addition', 'further'],
+        'moreover': ['furthermore', 'additionally'],
+        'therefore': ['thus', 'therefore'],
+        'however': ['however', 'nevertheless'],
+        'utilize': ['use', 'employ'],
+        'facilitate': ['support', 'enable'],
+        'demonstrate': ['show', 'demonstrate'],
+      }
+    : {
+        'furthermore': ['also', 'in addition'],
+        'moreover': ['also', 'further'],
+        'therefore': ['so', 'therefore'],
+        'however': ['however', 'but'],
+        'utilize': ['use'],
+        'facilitate': ['help', 'support'],
+        'demonstrate': ['show'],
+      };
+
+  result = applyPhraseReplacements(result, phraseReplacements);
+  result = applyPhraseReplacements(result, vocabularyReplacements);
+  result = removeCasualFillers(result);
+
+  if (tone === 'general') {
+    result = applySelectiveContractions(result, intensity);
+  }
+
+  return normalizeFormalStructure(result);
+}
+
+function detectTone(text: string): 'academic' | 'general' {
+  const lower = text.toLowerCase();
+  const academicMatches = (lower.match(/\b(furthermore|moreover|therefore|however|consequently|methodology|analysis|findings|study|research)\b/g) || []).length;
+  const casualMatches = (lower.match(/\b(honestly|basically|you know|i mean|gonna|wanna|kinda|sorta|real talk)\b/g) || []).length;
+  return academicMatches >= casualMatches + 2 ? 'academic' : 'general';
+}
+
+function applyPhraseReplacements(text: string, replacements: Record<string, string[]>): string {
+  let result = text;
+  Object.entries(replacements).forEach(([phrase, alternatives]) => {
+    const regex = new RegExp(`\\b${escapeRegExp(phrase)}\\b`, 'gi');
+    result = result.replace(regex, () => alternatives[Math.floor(Math.random() * alternatives.length)]);
   });
+  return result;
+}
 
-  // 2. FORCE contractions everywhere
-  const forceContractions: Record<string, string> = {
-    'will not': "won't",
-    'cannot': "can't",
-    'could not': "couldn't",
-    'should not': "shouldn't",
-    'would not': "wouldn't",
+function removeCasualFillers(text: string): string {
+  return text
+    .replace(/(^|[.!?]\s+)(look|honestly|basically|real talk|you know|i mean|frankly),\s+/gi, '$1')
+    .replace(/\s,\s*(honestly|basically|you know|i mean|real talk)\b/gi, '')
+    .replace(/\b(like),\s+/gi, '')
+    .replace(/\s{2,}/g, ' ');
+}
+
+function applySelectiveContractions(text: string, intensity: 'light' | 'medium' | 'aggressive'): string {
+  const contractionChance = intensity === 'aggressive' ? 0.5 : intensity === 'medium' ? 0.35 : 0.2;
+  const contractions: Record<string, string> = {
     'do not': "don't",
     'does not': "doesn't",
     'did not': "didn't",
-    'have not': "haven't",
-    'has not': "hasn't",
+    'cannot': "can't",
+    'will not': "won't",
     'is not': "isn't",
     'are not': "aren't",
-    'am not': "ain't",
-    'was not': "wasn't",
-    'were not': "weren't",
-    'I am': "I'm",
-    'you are': "you're",
-    'they are': "they're",
-    'we are': "we're",
-    'it is': "it's",
-    'that is': "that's",
-    'I have': "I've",
-    'you have': "you've",
-    'they have': "they've",
-    'I will': "I'll",
-    'you will': "you'll",
-    'he will': "he'll",
-    'she will': "she'll",
-    'it will': "it'll",
   };
 
-  Object.entries(forceContractions).forEach(([formal, contracted]) => {
-    const regex = new RegExp(`\\b${formal}\\b`, 'gi');
-    result = result.replace(regex, contracted);
+  let result = text;
+  Object.entries(contractions).forEach(([expanded, contracted]) => {
+    const regex = new RegExp(`\\b${expanded}\\b`, 'gi');
+    result = result.replace(regex, (match) => {
+      if (Math.random() > contractionChance) {
+        return match;
+      }
+      if (/^[A-Z]/.test(match)) {
+        return contracted.charAt(0).toUpperCase() + contracted.slice(1);
+      }
+      return contracted;
+    });
   });
+  return result;
+}
 
-  // 3. Replace formal words MULTIPLE TIMES with high variation
-  const replacements: Record<string, string[]> = {
-    'artificial intelligence': ['AI', 'machine learning', 'smart tech', 'ML'],
-    'has revolutionized': ['totally changed', 'completely flipped', 'messed with', 'transformed'],
-    'numerous': ['tons of', 'loads of', 'heaps of', 'a bunch of', 'so many'],
-    'industries': ['sectors', 'fields', 'spaces', 'areas'],
-    'providing': ['giving', 'offering', 'delivering', 'throwing at us'],
-    'sophisticated': ['complex', 'advanced', 'smart', 'intricate', 'fancy'],
-    'solutions': ['fixes', 'answers', 'ways to do it', 'approaches'],
-    'demonstrate': ['show', 'prove', 'make clear'],
-    'utilize': ['use', 'leverage', 'tap into'],
-    'implement': ['put in place', 'set up', 'use'],
-    'facilitate': ['help', 'make easier', 'enable'],
-    'comprehensive': ['full', 'complete', 'all-encompassing'],
-    'significant': ['big', 'major', 'important', 'huge'],
-    'particularly': ['especially', 'particularly', 'above all'],
-    'efficiently': ['quickly', 'fast', 'smoothly'],
-  };
+function normalizeFormalStructure(text: string): string {
+  return text
+    .replace(/\s+([,.;!?])/g, '$1')
+    .replace(/([,.;!?])([^\s])/g, '$1 $2')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
 
-  Object.entries(replacements).forEach(([formal, alternatives]) => {
-    const regex = new RegExp(`\\b${formal}\\b`, 'gi');
-    result = result.replace(regex, () => alternatives[Math.floor(Math.random() * alternatives.length)]);
-  });
-
-  // 4. Add TONS of personal language
-  const personalInserts = [
-    "honestly,",
-    "I think,",
-    "I'm gonna say,",
-    "here's the thing,",
-    "look,",
-    "real talk,",
-    "ngl,",
-    "tbh,",
-    "you know,",
-    "I mean,",
-    "I feel like,",
-  ];
-
-  const sent_array = result.split(/(?<=[.!?])\s+/);
-  result = sent_array.map((sent, idx) => {
-    if (idx > 0 && Math.random() > 0.3) {
-      const personal = personalInserts[Math.floor(Math.random() * personalInserts.length)];
-      return `${personal} ${sent.charAt(0).toLowerCase()}${sent.slice(1)}`;
-    }
-    return sent;
-  }).join(' ');
-
-  // 5. BREAK UP long sentences aggressively
-  let sentences = result.split(/(?<=[.!?])\s+/);
-  const broken = [];
-  
-  for (let sent of sentences) {
-    const words = sent.split(/\s+/);
-    if (words.length > 25) {
-      // Split into 2-3 parts randomly
-      const breakPoints = [];
-      const part1End = Math.floor(words.length * (0.3 + Math.random() * 0.2));
-      breakPoints.push(part1End);
-      
-      if (words.length > 40 && Math.random() > 0.5) {
-        const part2End = Math.floor(words.length * (0.6 + Math.random() * 0.15));
-        breakPoints.push(part2End);
-      }
-      
-      let lastIdx = 0;
-      breakPoints.forEach((breakIdx, i) => {
-        const part = words.slice(lastIdx, breakIdx).join(' ');
-        broken.push(part.trim());
-        lastIdx = breakIdx;
-      });
-      
-      if (lastIdx < words.length) {
-        const lastPart = words.slice(lastIdx).join(' ');
-        broken.push(lastPart.trim());
-      }
-    } else {
-      broken.push(sent);
-    }
-  }
-  result = broken.join('. ').trim();
-
-  // 6. Add questions and exclamations randomly
-  const sentences_arr = result.split(/([.!?])/);
-  for (let i = 0; i < sentences_arr.length; i += 2) {
-    if (sentences_arr[i] && sentences_arr[i].trim().length > 10) {
-      const rand = Math.random();
-      if (rand > 0.85) {
-        sentences_arr[i + 1] = '?';
-      } else if (rand > 0.75) {
-        sentences_arr[i + 1] = '!';
-      }
-    }
-  }
-  result = sentences_arr.join('');
-
-  // 7. Add colloquialisms and slang
-  const slangReplacements: Record<string, string[]> = {
-    'very': ['super', 'really', 'so', 'like'],
-    'good': ['nice', 'cool', 'great', 'awesome'],
-    'bad': ['terrible', 'awful', 'horrible', 'sucked'],
-    'think': ['figure', 'reckon', 'guess'],
-  };
-
-  Object.entries(slangReplacements).forEach(([word, slang]) => {
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
-    if (Math.random() > 0.4) {
-      result = result.replace(regex, () => slang[Math.floor(Math.random() * slang.length)]);
-    }
-  });
-
-  // 8. Add ellipsis and em-dashes EVERYWHERE
-  if (Math.random() > 0.3) {
-    const sentenceList = result.split(/(?<=[.!?])\s+/);
-    result = sentenceList.map(s => {
-      if (Math.random() > 0.6 && s.length > 15) {
-        return s + '...';
-      }
-      return s;
-    }).join(' ');
-  }
-
-  // Replace some periods with em-dashes
-  result = result.replace(/\.\s+/g, () => Math.random() > 0.7 ? ' -- ' : '. ');
-
-  // 9. Add "like" filler word
-  const filler_placements = result.split(/\s+/);
-  for (let i = 5; i < filler_placements.length; i += Math.floor(8 + Math.random() * 4)) {
-    if (Math.random() > 0.5) {
-      filler_placements.splice(i, 0, 'like');
-    }
-  }
-  result = filler_placements.join(' ');
-
-  // 10. Add minor typos and imperfections (sparingly)
-  if (Math.random() > 0.7) {
-    const words_typo = result.split(/\s+/);
-    const idx = Math.floor(Math.random() * words_typo.length);
-    if (words_typo[idx] && words_typo[idx].length > 5) {
-      // Remove random letter
-      const word = words_typo[idx];
-      const typoIdx = Math.floor(Math.random() * (word.length - 1)) + 1;
-      words_typo[idx] = word.slice(0, typoIdx) + word.slice(typoIdx + 1);
-    }
-  }
-
-  // 11. Random capitalization adjustments (fragment sentences)
-  if (Math.random() > 0.6) {
-    const parts = result.split(/([.!?])/);
-    for (let i = 2; i < parts.length; i += 2) {
-      if (Math.random() > 0.85) {
-        parts[i] = parts[i].charAt(0).toLowerCase() + parts[i].slice(1);
-      }
-    }
-    result = parts.join('');
-  }
-
-  return result.trim();
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export default function Dashboard() {
@@ -370,7 +262,7 @@ export default function Dashboard() {
     setError('');
 
     try {
-      const humanizedText = humanizeText(input, 'aggressive');
+      const humanizedText = humanizeText(input, 'medium');
       setHumanized(humanizedText);
       setInput(humanizedText);
       
