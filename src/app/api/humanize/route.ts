@@ -37,188 +37,72 @@ export async function POST(request: NextRequest) {
 
 function humanizeText(text: string, intensity: 'light' | 'medium' | 'aggressive'): string {
   let result = text;
-
-  // Step 1: Aggressive word replacement
-  const replacements: Record<string, string[]> = {
-    'artificial intelligence': ['AI', 'machine intelligence'],
-    'has revolutionized': ['completely changed', 'transformed', 'shaken up'],
-    'numerous': ['many', 'tons of', 'a lot of'],
-    'industries': ['sectors', 'fields', 'spaces'],
-    'providing': ['offering', 'giving'],
-    'sophisticated': ['complex', 'advanced', 'smart'],
-    'solutions': ['answers', 'fixes', 'approaches'],
-    'complex problems': ['hard challenges', 'tricky issues'],
-    'algorithms': ['processes', 'systems', 'methods'],
-    'enable': ['let', 'allow', 'help'],
-    'systems': ['computers', 'tech', 'tools'],
-    'learn patterns': ['pick up on patterns', 'figure out patterns'],
-    'from data': ['by looking at data', 'through data'],
-    'without explicit programming': ['without being programmed step-by-step', 'without coding each rule'],
-    'facilitating': ['making possible', 'allowing for'],
-    'autonomous decision-making': ['making decisions on their own', 'deciding things themselves'],
-    'natural language processing': ['language understanding', 'understanding what people say'],
-    'allows computers': ['lets computers', 'makes it possible for computers'],
-    'increasingly': ['more and more', 'increasingly'],
-    'integration': ['adding', 'putting'],
-    'demonstrated': ['shown', 'proven'],
-    'substantial': ['real', 'major', 'big'],
-    'improvements': ['gains', 'boosts'],
-    'efficiency': ['how fast things work', 'speed'],
-    'productivity': ['output', 'how much gets done'],
-    'across various sectors': ['in many fields', 'all over the place'],
+  const preserveCase = (replacement: string, original: string) => {
+    if (original === original.toUpperCase()) return replacement.toUpperCase();
+    if (original[0] === original[0]?.toUpperCase()) {
+      return replacement.charAt(0).toUpperCase() + replacement.slice(1);
+    }
+    return replacement;
   };
 
-  // Apply replacements - choose random alternatives for variety
-  Object.entries(replacements).forEach(([formal, alternatives]) => {
-    const regex = new RegExp(`\\b${formal}\\b`, 'gi');
-    if (result.match(regex)) {
-      const alt = alternatives[Math.floor(Math.random() * alternatives.length)];
-      result = result.replace(regex, alt);
-    }
+  const replacementRate = intensity === 'light' ? 0.35 : intensity === 'medium' ? 0.55 : 0.75;
+  const contractionRate = intensity === 'light' ? 0.2 : intensity === 'medium' ? 0.35 : 0.5;
+
+  // Step 1: Refine common AI-like phrases while preserving formal tone
+  const replacements: Record<string, string[]> = {
+    "in today's world": ['today', 'in contemporary contexts'],
+    'it is important to note that': ['it is worth noting that'],
+    'it is important to note': ['it is worth noting'],
+    'it should be noted that': ['it is worth noting that'],
+    'it should be noted': ['it is worth noting'],
+    'needless to say': ['clearly', 'as expected'],
+    'in this context': ['in this setting', 'within this context'],
+    'in conclusion': ['in summary', 'to conclude'],
+    'furthermore': ['in addition', 'additionally'],
+    'moreover': ['further', 'in addition'],
+    'therefore': ['thus', 'as a result'],
+    'however': ['however', 'nevertheless'],
+    'demonstrate': ['show', 'demonstrate'],
+    'utilize': ['use', 'employ'],
+    'facilitate': ['support', 'enable'],
+    'significant': ['substantial', 'significant'],
+    'numerous': ['many', 'numerous'],
+  };
+
+  Object.entries(replacements).forEach(([phrase, alternatives]) => {
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+    result = result.replace(regex, (match) => {
+      if (Math.random() > replacementRate) return match;
+      const replacement = alternatives[Math.floor(Math.random() * alternatives.length)];
+      return preserveCase(replacement, match);
+    });
   });
 
-  // Step 2: Aggressive contractions and casual speech
+  // Step 2: Apply minimal, non-personal contractions
   const contractions: Record<string, string> = {
-    'will not': "won't",
+    'it is': "it's",
+    'that is': "that's",
+    'there is': "there's",
     'cannot': "can't",
-    'can not': "can't",
+    'will not': "won't",
     'is not': "isn't",
     'are not': "aren't",
-    'do not': "don't",
     'does not': "doesn't",
-    'have not': "haven't",
-    'has not': "hasn't",
-    'had not': "hadn't",
-    'would not': "wouldn't",
-    'could not': "couldn't",
-    'should not': "shouldn't",
-    "I am": "I'm",
-    "you are": "you're",
-    "he is": "he's",
-    "she is": "she's",
-    "it is": "it's",
-    "we are": "we're",
-    "they are": "they're",
-    "I have": "I've",
-    "you have": "you've",
-    "we have": "we've",
-    "they have": "they've",
-    "I would": "I'd",
-    "you would": "you'd",
-    "he would": "he'd",
-    "she would": "she'd",
   };
 
   Object.entries(contractions).forEach(([expanded, contraction]) => {
     const regex = new RegExp(`\\b${expanded}\\b`, 'gi');
-    result = result.replace(regex, contraction);
+    result = result.replace(regex, (match) =>
+      Math.random() <= contractionRate ? preserveCase(contraction, match) : match
+    );
   });
 
-  // Step 3: Restructure sentences completely
-  result = restructureSentences(result, intensity);
-
-  // Step 4: Add casual connectors and fillers
-  if (intensity === 'aggressive' || intensity === 'medium') {
-    result = addCasualConnectors(result);
-  }
-
-  // Step 5: Break up very long sentences
-  result = breakUpSentences(result);
-
-  // Step 6: Remove repetitive patterns
+  // Step 3: Remove immediate word repetitions and normalize spacing
   result = removeRepetition(result);
+  result = result.replace(/\s+/g, ' ').trim();
 
-  return result.trim();
-}
-
-function restructureSentences(text: string, intensity: string): string {
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-  
-  const casualOpeners = [
-    'Look,',
-    'Honestly,',
-    'To be fair,',
-    "Here's the thing:",
-    'Basically,',
-    'The point is,',
-    'Think about it -',
-  ];
-
-  return sentences.map((sentence, idx) => {
-    let modified = sentence.trim();
-    
-    // Add casual opener to first sentence
-    if (idx === 0 && intensity === 'aggressive' && Math.random() > 0.3) {
-      const opener = casualOpeners[Math.floor(Math.random() * casualOpeners.length)];
-      modified = opener + ' ' + modified.charAt(0).toLowerCase() + modified.slice(1);
-    }
-
-    // Rearrange if too formal
-    if (modified.match(/^the|^a[^a-z]/i)) {
-      const words = modified.split(/\s+/);
-      // Move some words to end for conversational flow
-      if (words.length > 8 && Math.random() > 0.5) {
-        const rearranged = [...words.slice(3), ...words.slice(0, 3)].join(' ');
-        modified = rearranged;
-      }
-    }
-
-    return modified;
-  }).join(' ');
-}
-
-function addCasualConnectors(text: string): string {
-  const connectors: Record<string, string[]> = {
-    'and': ['and', 'plus', '—', ', plus'],
-    'but': ['but', 'though', 'however', 'yet'],
-    'because': ['because', "since", 'as'],
-    'therefore': ['so', 'which means', 'that\'s why'],
-  };
-
-  Object.entries(connectors).forEach(([formal, alternatives]) => {
-    const regex = new RegExp(`\\b${formal}\\b`, 'gi');
-    if (text.match(regex)) {
-      const alt = alternatives[Math.floor(Math.random() * alternatives.length)];
-      text = text.replace(regex, alt);
-    }
-  });
-
-  return text;
-}
-
-function breakUpSentences(text: string): string {
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-
-  return sentences.map(sentence => {
-    const trimmed = sentence.trim();
-    const words = trimmed.split(/\s+/);
-
-    // Break very long sentences
-    if (words.length > 22) {
-      // Find best breaking point
-      let breakIdx = Math.floor(words.length / 2);
-      
-      // Look for natural break points
-      for (let i = breakIdx - 4; i < breakIdx + 4; i++) {
-        if (i > 0 && i < words.length) {
-          const word = words[i];
-          if (word.match(/^(and|but|or|because|which|that|so|plus),?$/i)) {
-            breakIdx = i + 1;
-            break;
-          }
-        }
-      }
-
-      const part1 = words.slice(0, breakIdx).join(' ').replace(/,\s*$/, '');
-      const part2 = words.slice(breakIdx).join(' ').trim();
-
-      if (part1.length > 10 && part2.length > 10) {
-        return part1 + '. ' + part2;
-      }
-    }
-
-    return trimmed;
-  }).join(' ');
+  return result;
 }
 
 function removeRepetition(text: string): string {
